@@ -50,7 +50,7 @@ def main() -> None:
         num_train_epochs=1,
         max_completion_length=4096,
         max_steps=10,
-        report_to="trackio",
+        report_to=[],
         trackio_space_id=None,
         project="async_grpo",
         log_completions=True,
