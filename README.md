@@ -1,4 +1,4 @@
-# TRL - Transformers Reinforcement Learning
+# Yet Another (trl) Test Repo
 
 <div style="text-align: center">
     <picture>
@@ -8,10 +8,6 @@
 </div>
 
 <hr> <br>
-
-<h3 align="center">
-    <p>A comprehensive library to post-train foundation models</p>
-</h3>
 
 <p align="center">
     <a href="https://github.com/huggingface/trl/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/huggingface/trl.svg?color=blue"></a>
