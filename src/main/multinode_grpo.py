@@ -4,13 +4,9 @@ import torch
 from datasets import load_dataset
 from transformers import AutoTokenizer
 
-from trl import (
-    ModelConfig,
-    ScriptArguments,
-    TrlParser,
-)
+from trl import ModelConfig, ScriptArguments, TrlParser
 from trl.experimental.async_grpo import AsyncGRPOConfig, AsyncGRPOTrainer
-from trl.rewards import accuracy_reward
+from trl.rewards import accuracy_reward, think_format_reward
 
 
 DEBUG = False
@@ -43,7 +39,24 @@ if __name__ == "__main__":
         streaming=script_args.dataset_streaming,
         num_proc=None if script_args.dataset_streaming else 67,
     )
-    # train_dataset = train_dataset.select_columns(["text"])
+
+    SYSTEM_PROMPT = (
+        "A conversation between user and assistant. The user asks a question, and the assistant solves it. The "
+        "assistant first thinks about the reasoning process in the mind and then provides the user with the answer. "
+        "The reasoning process and answer are enclosed within <think></think> tags, i.e., <think>\nThis is my "
+        "reasoning.\n</think>\nThis is my answer."
+    )
+
+    def make_conversation(example):
+        return {
+            "prompt": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": example["question"]},
+            ],
+        }
+
+    train_dataset = train_dataset.map(make_conversation)
+    train_dataset = train_dataset.remove_columns(["messages", "prompt", "question"])
 
     ################
     # Training
@@ -52,7 +65,7 @@ if __name__ == "__main__":
         model=model_args.model_name_or_path,
         processing_class=processor,
         args=training_args,
-        reward_funcs=accuracy_reward,
+        reward_funcs=[think_format_reward, accuracy_reward],
         train_dataset=train_dataset,
     )
     # validate_accelerator_config(trainer.accelerator)

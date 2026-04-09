@@ -4,7 +4,7 @@ VLLM_SERVER_URL=""
 N_NODES=2
 N_GPUS_PER_NODE=4
 
-MODEL_PATH="Qwen/Qwen3-0.6B-Base"
+MODEL_PATH="Qwen/Qwen3-0.6B"
 TOKENIZER_PATH=""
 
 # --- Data, Output and Logging paths --- #
@@ -42,35 +42,37 @@ TOKENIZER_PATH="${TOKENIZER_PATH:-$MODEL_PATH}"
 	echo "N_NODES should be a non negative integer, (currently $N_NODES)" && exit 1
 }
 
-if ((N_GPUS_PER_NODE == 4)); then
-	export CUDA_VISIBLE_DEVICES=0,1,2,3
-elif ((N_GPUS_PER_NODE == 8)); then
-	export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+# --- Main code --- #
+bash $SCRIPT_DIR/install_dependancies.sh $ROOT_DIR || exit 1
+mkdir -p $OUTPUT_DIR
+
+if command -v curl >/dev/null 2>&1; then
+    s=$SECONDS
+    until curl -ksf "${VLLM_SERVER_URL}/health" >/dev/null 2>&1; do
+        echo "Waiting for vLLM server at ${VLLM_SERVER_URL}... $((SECONDS - s))s"
+        sleep 1
+    done
+    echo "vLLM server is up."
 else
-	echo "N_GPUS_PER_NODE should be 4 or 8"
-	exit 1
+    echo "[WARNING]: 'curl' not found. Skipping vLLM server health check..."
 fi
 
-# --- Main code --- #
-echo -n "Waiting for vLLM server... "
-until curl -ksf "${VLLM_SERVER_URL}/health" >/dev/null 2>&1; do
-	sleep 5
-done
-echo "Done."
-echo -e "Log file of training will be at:\n\t'$TRAINING_LOG_FILE'"
+echo -e "Log file of training will be at:\n\t'$TRAINING_LOG_FILE'\n\n"
+
+# --main_process_ip $MASTER_ADDR \
+# --main_process_port $MASTER_PORT \
 
 cd "$SRC_DIR" || exit 1
 PYTHONPATH=$SRC_DIR accelerate launch \
+    --config_file accelerate_configs/multinode.yaml \
     --num_machines $N_NODES \
     --num_processes $(( N_NODES * N_GPUS_PER_NODE )) \
-    --config_file accelerate_configs/multinode.yaml \
     main/multinode_grpo.py \
     --model_name_or_path $MODEL_PATH \
     --output_dir $OUTPUT_DIR \
     --dataset_name $DATA_PATH \
     --dataset_streaming false \
     --vllm_server_base_url $VLLM_SERVER_URL \
-    --loss_type dr_grpo \
     --learning_rate 1e-6 \
     --dtype bfloat16 \
     --max_completion_length 2048 \
@@ -79,7 +81,6 @@ PYTHONPATH=$SRC_DIR accelerate launch \
     --gradient_accumulation_steps 1 \
     --num_generations 8 \
     --gradient_checkpointing false \
-    --beta 0.0 \
     --warmup_steps 300 \
     --max_grad_norm 1.0 \
     --log_completions true \
