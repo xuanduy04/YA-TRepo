@@ -2,10 +2,6 @@
 
 while (($# > 0)); do
 	case "$1" in
-	--vllm_nodes)
-		VLLM_NODES="$2"
-		shift 2
-		;;
 	--n_gpus_per_node)
 		N_GPUS_PER_NODE="$2"
 		shift 2
@@ -22,10 +18,6 @@ while (($# > 0)); do
 		MODEL_NAME="$2"
 		shift 2
 		;;
-	--log_file)
-		VLLM_SERVE_LOG_FILE="$2"
-		shift 2
-		;;
 	*)
 		echo "Unknown argument: $1" >&2
 		exit 1
@@ -33,21 +25,22 @@ while (($# > 0)); do
 	esac
 done
 
-# as VLLM_NODES is just 1 for now, we don't add any more logic to this.
-# eventually, this code will call ray and what not.
+TOKENIZER_PATH="${TOKENIZER_PATH:-$MODEL_PATH}"
+MODEL_NAME="${MODEL_NAME:-$(basename $MODEL_PATH)}"
 
-vllm serve \
-	--model $MODEL_PATH \
+VLLM_SERVER_DEV_MODE=1 vllm serve $MODEL_PATH \
 	--tokenizer $TOKENIZER_PATH \
-	--serve-model-name $MODEL_NAME \
+	--served-model-name $MODEL_NAME \
 	--port 8000 \
 	--gpu-memory-utilization 0.90 \
 	--tensor-parallel-size $N_GPUS_PER_NODE \
 	--max-model-len 16384 \
 	--no-enable-prefix-caching \
 	--async-scheduling \
-	--enable-expert-parallel \
 	--enable-tokenizer-info-endpoint \
 	--trust-remote-code \
 	--compilation-config '{"pass_config": {"fuse_allreduce_rms": false}}' \
-	2>&1 | tee $VLLM_SERVE_LOG_FILE
+	--logprobs-mode processed_logprobs \
+	--weight-transfer-config '{"backend":"nccl"}'
+
+# --enable-expert-parallel \
