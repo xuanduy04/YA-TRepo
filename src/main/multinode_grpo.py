@@ -1,22 +1,29 @@
 import logging
+from dataclasses import dataclass
 
 import torch
 from datasets import load_dataset
 from transformers import AutoTokenizer
 
 from trl import ModelConfig, ScriptArguments, TrlParser
-from trl.experimental.async_grpo import AsyncGRPOConfig, AsyncGRPOTrainer
 from trl.rewards import accuracy_reward, think_format_reward
+from trl.trainer import GRPOConfig, GRPOTrainer
 
 
+NUM_PROC = 100
 DEBUG = False
 if DEBUG:
     logging.basicConfig(level=logging.INFO)
 
 
+@dataclass
+class TokenizerConfig:
+    tokenizer_name_or_path: str | None = None
+
+
 if __name__ == "__main__":
-    parser = TrlParser((ScriptArguments, AsyncGRPOConfig, ModelConfig))
-    script_args, training_args, model_args, reward_args = parser.parse_args_and_config()
+    parser = TrlParser((ScriptArguments, GRPOConfig, ModelConfig, TokenizerConfig))
+    script_args, training_args, model_args, tokenizer_args = parser.parse_args_and_config()
     ################
     # Model & Processor
     ################
@@ -26,18 +33,23 @@ if __name__ == "__main__":
         attn_implementation=model_args.attn_implementation,
         dtype=dtype,
     )
-
-    processor = AutoTokenizer.from_pretrained(model_args.model_name_or_path, padding_side="left")
+    tokenizer_name_or_path = (
+        tokenizer_args.tokenizer_name_or_path
+        if tokenizer_args.tokenizer_name_or_path
+        else model_args.model_name_or_path
+    )
+    processor = AutoTokenizer.from_pretrained(tokenizer_name_or_path, padding_side="left")
 
     ################
     # Dataset
     ################
+    print("Begin processing dataset")
     train_dataset = load_dataset(
         "json",
         data_files=script_args.dataset_name,
         split="train",
-        streaming=script_args.dataset_streaming,
-        num_proc=None if script_args.dataset_streaming else 67,
+        streaming=False,
+        num_proc=NUM_PROC,
     )
 
     SYSTEM_PROMPT = (
@@ -55,13 +67,12 @@ if __name__ == "__main__":
             ],
         }
 
-    train_dataset = train_dataset.map(make_conversation)
-    train_dataset = train_dataset.remove_columns(["messages", "prompt", "question"])
+    train_dataset = train_dataset.map(make_conversation, num_proc=NUM_PROC)
 
     ################
     # Training
     ################
-    trainer = AsyncGRPOTrainer(
+    trainer = GRPOTrainer(
         model=model_args.model_name_or_path,
         processing_class=processor,
         args=training_args,

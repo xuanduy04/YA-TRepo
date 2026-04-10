@@ -38,6 +38,8 @@ require_var N_NODES
 require_var N_GPUS_PER_NODE
 require_var MODEL_PATH
 TOKENIZER_PATH="${TOKENIZER_PATH:-$MODEL_PATH}"
+MASTER_ADDR="${MASTER_ADDR:-localhost}"
+MASTER_PORT="${MASTER_PORT:-0}"
 ((N_NODES > 0)) || {
 	echo "N_NODES should be a non negative integer, (currently $N_NODES)" && exit 1
 }
@@ -59,19 +61,21 @@ fi
 
 echo -e "Log file of training will be at:\n\t'$TRAINING_LOG_FILE'\n\n"
 
-# --main_process_ip $MASTER_ADDR \
-# --main_process_port $MASTER_PORT \
 
 cd "$SRC_DIR" || exit 1
-PYTHONPATH=$SRC_DIR accelerate launch \
+TRL_EXPERIMENTAL_SILENCE=1 PYTHONPATH=$SRC_DIR accelerate launch \
     --config_file accelerate_configs/multinode.yaml \
+    --main_process_ip $MASTER_ADDR \
+    --main_process_port $MASTER_PORT \
     --num_machines $N_NODES \
     --num_processes $(( N_NODES * N_GPUS_PER_NODE )) \
     main/multinode_grpo.py \
     --model_name_or_path $MODEL_PATH \
+    --tokenizer_name_or_path $TOKENIZER_PATH \
     --output_dir $OUTPUT_DIR \
     --dataset_name $DATA_PATH \
-    --dataset_streaming false \
+    --use_vllm true \
+    --vllm_mode 'server' \
     --vllm_server_base_url $VLLM_SERVER_URL \
     --learning_rate 1e-6 \
     --dtype bfloat16 \
@@ -81,6 +85,7 @@ PYTHONPATH=$SRC_DIR accelerate launch \
     --gradient_accumulation_steps 1 \
     --num_generations 8 \
     --gradient_checkpointing false \
+    --beta 0.0 \
     --warmup_steps 300 \
     --max_grad_norm 1.0 \
     --log_completions true \
