@@ -1047,8 +1047,14 @@ def create_model_from_path(
     kwargs["device_map"] = kwargs.get("device_map", "auto")
     if architecture is None:
         config = AutoConfig.from_pretrained(model_id)
-        architecture = getattr(transformers, config.architectures[0])
-    model = architecture.from_pretrained(model_id, **kwargs)
+        architecture_name = config.architectures[0]
+        if hasattr(transformers, architecture_name):
+            architecture = getattr(transformers, architecture_name)
+            model = architecture.from_pretrained(model_id, **kwargs)
+        else:
+            from transformers import AutoModel
+            kwargs["trust_remote_code"] = True
+            model = AutoModel.from_pretrained(model_id, **kwargs)
     return model
 
 

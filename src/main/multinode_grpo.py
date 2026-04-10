@@ -29,6 +29,7 @@ if __name__ == "__main__":
     ################
     dtype = model_args.dtype if model_args.dtype in ["auto", None] else getattr(torch, model_args.dtype)
     training_args.model_init_kwargs = dict(
+        trust_remote_code=True,
         revision=model_args.model_revision,
         attn_implementation=model_args.attn_implementation,
         dtype=dtype,
