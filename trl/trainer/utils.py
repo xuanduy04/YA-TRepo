@@ -1021,10 +1021,19 @@ def create_model_from_path(
             f"a valid `torch.dtype` (e.g., 'float32'), but got {dtype}."
         )
     kwargs["device_map"] = kwargs.get("device_map", "auto")
+
     if architecture is None:
-        config = AutoConfig.from_pretrained(model_id)
-        architecture = getattr(transformers, config.architectures[0])
-    model = architecture.from_pretrained(model_id, **kwargs)
+        config = AutoConfig.from_pretrained(model_id, trust_remote_code=kwargs.get("trust_remote_code", False))
+        if hasattr(transformers, config.architectures[0]):
+            architecture = getattr(transformers, config.architectures[0])
+            model = architecture.from_pretrained(model_id, **kwargs)
+        else:
+            from transformers import AutoModelForCausalLM
+
+            kwargs["trust_remote_code"] = True
+            model = AutoModelForCausalLM.from_pretrained(model_id, **kwargs)
+    else:
+        model = architecture.from_pretrained(model_id, **kwargs)
     return model
 
 
