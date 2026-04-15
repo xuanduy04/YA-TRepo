@@ -39,7 +39,7 @@ if __name__ == "__main__":
         if tokenizer_args.tokenizer_name_or_path
         else model_args.model_name_or_path
     )
-    processor = AutoTokenizer.from_pretrained(tokenizer_name_or_path, padding_side="left")
+    processor = AutoTokenizer.from_pretrained(tokenizer_name_or_path, padding_side="left", trust_remote_code=True)
 
     ################
     # Dataset

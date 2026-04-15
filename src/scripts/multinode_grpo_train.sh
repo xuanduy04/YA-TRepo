@@ -15,9 +15,9 @@ DATA_PATH="$ROOT_DIR/data_ready2train/*.jsonl" # <--- DATA_PATH HERE
 
 MODEL_NAME="$(basename "$MODEL_PATH")"
 RUN_NAME="${MODEL_NAME}-$(date +%Y%m%d-%H%M%S)"
-OUTPUT_DIR="$ROOT_DIR/outputs/consept-$RUN_NAME" # <--- OUTPUT_DIR HERE
+OUTPUT_DIR="$ROOT_DIR/outputs/GRPO-$RUN_NAME" # <--- OUTPUT_DIR HERE
 
-TRAINING_LOG_FILE="$OUTPUT_DIR/training_logs-${RUN_NAME}.txt"
+TRAINING_LOG_FILE="$OUTPUT_DIR/training_logs-${RUN_NAME}.logs"
 
 # --- exporting hf home and cache, if you need to do so --- #
 # export HF_HOME=""
@@ -39,7 +39,7 @@ require_var N_GPUS_PER_NODE
 require_var MODEL_PATH
 TOKENIZER_PATH="${TOKENIZER_PATH:-$MODEL_PATH}"
 MASTER_ADDR="${MASTER_ADDR:-localhost}"
-MASTER_PORT="${MASTER_PORT:-0}"
+MASTER_PORT="${MASTER_PORT:-6767}"
 ((N_NODES > 0)) || {
 	echo "N_NODES should be a non negative integer, (currently $N_NODES)" && exit 1
 }
@@ -60,7 +60,6 @@ else
 fi
 
 echo -e "Log file of training will be at:\n\t'$TRAINING_LOG_FILE'\n\n"
-
 
 cd "$SRC_DIR" || exit 1
 TRL_EXPERIMENTAL_SILENCE=1 PYTHONPATH=$SRC_DIR accelerate launch \
@@ -94,5 +93,5 @@ TRL_EXPERIMENTAL_SILENCE=1 PYTHONPATH=$SRC_DIR accelerate launch \
     --save_strategy steps \
     --save_steps 50 \
     --report_to tensorboard \
-    --seed 2212 \
-    2>&1 | tee $TRAINING_LOG_FILE
+    --trust_remote_code true \
+    --seed 2212
