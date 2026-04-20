@@ -42,6 +42,7 @@ VLLM_SERVER_URL="${VLLM_SERVER_URL:-${MASTER_ADDR}:8000}"
 ((N_NODES > 1)) || {
 	echo "N_NODES should be greater than 1, (currently $N_NODES)" && exit 1
 }
+N_TRAINING_NODES=$(( N_NODES - 1 ))
 bash $SCRIPT_DIR/validate_gpu_count.sh $N_GPUS_PER_NODE || exit 1
 
 # --- Main code --- #
@@ -55,12 +56,12 @@ run_training() {
     SAFETENSORS_FAST_GPU=1 \
     HF_ENABLE_PARALLEL_LOADING=true HF_PARALLEL_LOADING_WORKERS=$(( 100 / N_GPUS_PER_NODE )) \
     TRL_EXPERIMENTAL_SILENCE=1 PYTHONPATH=$SRC_DIR accelerate launch \
-        --config_file accelerate_configs/multinode.yaml \
-        --parallelism_config_tp_size $(( N_NODES * N_GPUS_PER_NODE )) \
+        --config_file accelerate_configs/multinode_fsdp2.yaml \
+        --parallelism_config_tp_size $(( N_TRAINING_NODES * N_GPUS_PER_NODE )) \
         --main_process_ip $MASTER_ADDR \
         --main_process_port $MASTER_PORT \
-        --num_machines $N_NODES \
-        --num_processes $(( N_NODES * N_GPUS_PER_NODE )) \
+        --num_machines $N_TRAINING_NODES \
+        --num_processes $(( N_TRAINING_NODES * N_GPUS_PER_NODE )) \
         main/multinode_grpo.py \
         --model_name_or_path $MODEL_PATH \
         --tokenizer_name_or_path $TOKENIZER_PATH \
