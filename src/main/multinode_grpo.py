@@ -69,10 +69,12 @@ if __name__ == "__main__":
         }
 
     train_dataset = train_dataset.map(make_conversation, num_proc=NUM_PROC)
+    print("Done loading dataset")
 
     ################
     # Training
     ################
+    print("Initializing GRPOTrainer")
     trainer = GRPOTrainer(
         model=model_args.model_name_or_path,
         processing_class=processor,
@@ -84,6 +86,6 @@ if __name__ == "__main__":
     trainer.accelerator.print(f"Begin training {trainer._name} for model `{model_args.model_name_or_path}`")
     resume_from_checkpoint = training_args.resume_from_checkpoint if training_args.resume_from_checkpoint else None
     if resume_from_checkpoint:
-        print(f"Resuming from checkpoint at '{resume_from_checkpoint}'")
+        trainer.accelerator.print(f"Resuming from checkpoint at '{resume_from_checkpoint}'")
     trainer.train(resume_from_checkpoint)
     trainer.save_model(training_args.output_dir)

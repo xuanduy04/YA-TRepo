@@ -29,5 +29,6 @@ trl vllm-serve \
 	--data-parallel-size 1 \
 	--max-model-len 32768 \
 	--kv-cache-dtype auto \
+	--host "${MASTER_ADDR:-localhost}" \
 	--port 8000 \
 	|| exit 1
