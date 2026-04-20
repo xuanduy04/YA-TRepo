@@ -3,7 +3,7 @@
 TOKENIZER_PATH="${TOKENIZER_PATH:-$MODEL_PATH}"
 SERVED_MODEL_NAME="${SERVED_MODEL_NAME:-$(basename $MODEL_PATH)}"
 
-# trl vllm-serve $MODEL_PATH \
+# vllm serve $MODEL_PATH \
 # 	--tokenizer $TOKENIZER_PATH \
 # 	--served-model-name $SERVED_MODEL_NAME \
 # 	--gpu-memory-utilization 0.9 \
@@ -19,11 +19,15 @@ SERVED_MODEL_NAME="${SERVED_MODEL_NAME:-$(basename $MODEL_PATH)}"
 # 	--logprobs-mode processed_logprobs \
 # 	--weight-transfer-config '{"backend":"nccl"}'
 
+
 trl vllm-serve \
-  --model $MODEL_PATH \
-  --tensor-parallel-size $N_GPUS_PER_NODE \
-  --data-parallel-size 1 \
-  --gpu-memory-utilization 0.9 \
-  --trust-remote-code \
-  --kv-cache-dtype fp8 \
-  --max-model-len auto
+	--model $MODEL_PATH \
+	--tokenizer $TOKENIZER_PATH \
+	--gpu-memory-utilization 0.92 \
+	--trust-remote-code \
+	--tensor-parallel-size 4 \
+	--data-parallel-size 1 \
+	--max-model-len 32768 \
+	--kv-cache-dtype auto \
+	--port 8000 \
+	|| exit 1

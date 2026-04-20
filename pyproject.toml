@@ -33,7 +33,7 @@ dependencies = [
     "datasets>=4.7.0",  # Support Json type and on_mixed_types="use_json"
     "jinja2",
     "packaging>20.0",
-    "transformers>=4.56.2",
+    "transformers>=4.56.2,<5.0.0",
 ]
 dynamic = ["version"]
 
@@ -79,7 +79,7 @@ test = [
     "pytest"
 ]
 vllm = [
-    "vllm>=0.11.0,<=0.17.1",
+    "vllm==0.17.1",
     "fastapi",
     "pydantic",
     "aiohttp>=3.13.3",

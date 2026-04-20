@@ -204,7 +204,7 @@ class ScriptArguments:
             implementation.
         kv_cache_dtype (`str`, *optional*, defaults to `"auto"`):
             Data type to use for KV cache. If set to `"auto"`, the dtype will default to the model data type.
-        trust_remote_code (`bool`, *optional*, defaults to `False`):
+        trust_remote_code (`bool`, *optional*, defaults to `True`):
             Whether to trust remote code when loading models. Set to `True` to allow executing code from model
             repositories. This is required for some custom models but introduces security risks.
         log_level (`str`, *optional*, defaults to `"info"`):
@@ -218,6 +218,10 @@ class ScriptArguments:
 
     model: str = field(
         metadata={"help": "Model name or path to load the model from."},
+    )
+    tokenizer: str | None = field(
+        default=None,
+        metadata={"help": "Tokenizer name or path to load the tokenizer from."},
     )
     revision: str | None = field(
         default=None,
@@ -289,7 +293,7 @@ class ScriptArguments:
         },
     )
     trust_remote_code: bool = field(
-        default=False,
+        default=True,
         metadata={
             "help": "Whether to trust remote code when loading models. Set to True to allow executing code from model "
             "repositories. This is required for some custom models but introduces security risks."
@@ -318,6 +322,10 @@ class ScriptArguments:
             "GPUs. If not set, vLLM defaults to the multiproc backend (single-node only)."
         },
     )
+    enable_expert_parallel: bool = field(default=False, metadata={"help": "whether to enable expert parallel"})
+    max_num_batched_tokens: int | None = field(
+        default=None, metadata={"help": "Max number of tokens within a batched-request"}
+    )
 
 
 def llm_worker(
@@ -333,8 +341,11 @@ def llm_worker(
 
     llm = LLM(
         model=script_args.model,
+        tokenizer=script_args.tokenizer,
         revision=script_args.revision,
         tensor_parallel_size=script_args.tensor_parallel_size,
+        data_parallel_size=script_args.data_parallel_size,
+        enable_expert_parallel=script_args.enable_expert_parallel,
         gpu_memory_utilization=script_args.gpu_memory_utilization,
         enforce_eager=script_args.enforce_eager,
         dtype=script_args.dtype,
@@ -344,6 +355,7 @@ def llm_worker(
         enable_prefix_caching=script_args.enable_prefix_caching,
         kv_cache_dtype=script_args.kv_cache_dtype,
         max_model_len=script_args.max_model_len,
+        max_num_batched_tokens=script_args.max_num_batched_tokens,
         worker_extension_cls="trl.scripts.vllm_serve.WeightSyncWorkerExtension",
         trust_remote_code=script_args.trust_remote_code,
         model_impl=script_args.vllm_model_impl,
@@ -443,6 +455,8 @@ def main(script_args: ScriptArguments):
         from PIL import Image
 
     logger = logging.getLogger(__name__)
+    if script_args.tokenizer is None:
+        script_args.tokenizer = script_args.model
 
     # Spawn dp workers, and setup pipes for communication
     master_port = get_open_port()

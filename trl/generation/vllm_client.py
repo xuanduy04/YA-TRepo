@@ -35,6 +35,7 @@ from ..import_utils import is_requests_available, is_vllm_ascend_available, is_v
 if is_requests_available():
     import requests
     from requests import ConnectionError
+    requests.packages.urllib3.disable_warnings()
 
 
 if is_vllm_available():
@@ -133,6 +134,7 @@ class VLLMClient:
             raise ImportError("vLLM is not installed. Please install it with `pip install trl[vllm]`.")
 
         self.session = requests.Session()
+        self.session.verify = False
 
         # Configure retries for HTTP requests made through this session.
         # This is not strictly required for correctness, but it helps make training more robust to rare, transient
@@ -165,13 +167,13 @@ class VLLMClient:
         self.group_port = group_port
         self.check_server(connection_timeout)  # check server and fail after timeout
 
-    def check_server(self, total_timeout: float = 0.0, retry_interval: float = 2.0):
+    def check_server(self, total_timeout: float = 0.0, retry_interval: float = 5.0):
         """
         Check server availability with retries on failure, within a total timeout duration. If the server is not up
         after the total timeout duration, raise a `ConnectionError`.
 
         Args:
-            retry_interval (`float`, *optional*, defaults to `2.0`):
+            retry_interval (`float`, *optional*, defaults to `5.0`):
                 Interval in seconds between retries.
             total_timeout (`float`, *optional*, defaults to `0.0`):
                 Total timeout duration in seconds.
@@ -181,7 +183,7 @@ class VLLMClient:
 
         while True:
             try:
-                response = requests.get(url)
+                response = self.session.get(url)
             except requests.exceptions.RequestException as exc:
                 # Check if the total timeout duration has passed
                 elapsed_time = time.time() - start_time
@@ -424,7 +426,7 @@ class VLLMClient:
         """
         # Get the world size from the server
         url = f"{self.base_url}/get_world_size/"
-        response = requests.get(url)
+        response = self.session.get(url)
         if response.status_code == 200:
             vllm_world_size = response.json()["world_size"]
         else:
